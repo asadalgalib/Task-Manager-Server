@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 app.use(cors({
     origin: ['http://localhost:5173',
@@ -15,6 +15,11 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json());
+app.use((req, res, next) => {
+    res.removeHeader("Cross-Origin-Opener-Policy");
+    res.removeHeader("Cross-Origin-Embedder-Policy");
+    next();
+});
 
 //   xTuGGhquJY0jLiBJ
 // Galib
@@ -40,7 +45,7 @@ async function run() {
         const taskCollection = database.collection('Tasks');
 
         // create user api
-        app.post('/user',async (req, res) => {
+        app.post('/user', async (req, res) => {
             const user = req.body;
             const query = { email: user.email }
             const existingUser = await userCollection.findOne(query)
@@ -54,10 +59,52 @@ async function run() {
         });
 
         // create task
-        app.post('/task', async (req,res)=>{
+        app.post('/task', async (req, res) => {
             const task = req.body;
             const result = await taskCollection.insertOne(task);
             res.send(result);
+        });
+
+        // get task
+        app.get('/task', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email }
+            const result = await taskCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        // get task by id 
+        app.get('/task/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await taskCollection.findOne(query);
+            res.send(result);
+        })
+
+        // delete task 
+        app.delete('/task', async (req, res) => {
+            const id = req.query.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await taskCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        // update Task 
+        app.put('/task/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const updateTask = req.body;
+            const updated = {
+                $set: {
+                    title: updateTask.title,
+                    description: updateTask.description,
+                    status: updateTask.status,
+                    time: updateTask.time
+                }
+            }
+            const options = { upsert: true }
+            const result = await taskCollection.updateOne(query,updated,options);
+            res.send(result)
         })
 
     } finally {
